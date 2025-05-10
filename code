@@ -1,0 +1,197 @@
+#include <Ps3Controller.h> 
+
+ 
+
+// Définir les broches de contrôle des moteurs 
+
+#define LEFT_RPWM   26 
+
+#define LEFT_LPWM   25 
+
+#define LEFT_REN    14 
+
+#define LEFT_LEN    27 
+
+ 
+
+#define RIGHT_RPWM  5 
+
+#define RIGHT_LPWM  18 
+
+#define RIGHT_REN   16 
+
+#define RIGHT_LEN   17 
+
+ 
+
+int speedMultiplier = 255; // Vitesse par défaut 
+
+ 
+
+void notify() { 
+
+  Serial.println("Manette connectée."); 
+
+} 
+
+ 
+
+void setup() { 
+
+  Serial.begin(115200); 
+
+  Ps3.attach(notify); 
+
+  Ps3.begin("00:00:00:00:00:00"); // Remplacer par l'adresse MAC de votre manette 
+
+  Serial.println("En attente de connexion..."); 
+
+ 
+
+  pinMode(LEFT_REN, OUTPUT); 
+
+  pinMode(LEFT_LEN, OUTPUT); 
+
+  pinMode(RIGHT_REN, OUTPUT); 
+
+  pinMode(RIGHT_LEN, OUTPUT); 
+
+ 
+
+  digitalWrite(LEFT_REN, HIGH); 
+
+  digitalWrite(LEFT_LEN, HIGH); 
+
+  digitalWrite(RIGHT_REN, HIGH); 
+
+  digitalWrite(RIGHT_LEN, HIGH); 
+
+} 
+
+ 
+
+void updateSpeed() { 
+
+  if (Ps3.data.button.r1) { 
+
+    speedMultiplier = 255; 
+
+  } else if (Ps3.data.button.r2) { 
+
+    speedMultiplier = 200; 
+
+  } else if (Ps3.data.button.l1) { 
+
+    speedMultiplier = 100; 
+
+  } else if (Ps3.data.button.l2) { 
+
+    speedMultiplier = 50; 
+
+  } 
+
+} 
+
+ 
+
+void moveRobot(int leftSpeed, int rightSpeed) { 
+
+  leftSpeed = constrain(leftSpeed, -255, 255); 
+
+  rightSpeed = constrain(rightSpeed, -255, 255); 
+
+ 
+
+  // Moteur gauche 
+
+  if (leftSpeed >= 0) { 
+
+    analogWrite(LEFT_RPWM, leftSpeed); 
+
+    analogWrite(LEFT_LPWM, 0); 
+
+  } else { 
+
+    analogWrite(LEFT_RPWM, 0); 
+
+    analogWrite(LEFT_LPWM, -leftSpeed); 
+
+  } 
+
+ 
+
+  // Moteur droit 
+
+  if (rightSpeed >= 0) { 
+
+    analogWrite(RIGHT_RPWM, rightSpeed); 
+
+    analogWrite(RIGHT_LPWM, 0); 
+
+  } else { 
+
+    analogWrite(RIGHT_RPWM, 0); 
+
+    analogWrite(RIGHT_LPWM, -rightSpeed); 
+
+  } 
+
+} 
+
+ 
+
+void loop() { 
+
+  if (Ps3.isConnected()) { 
+
+    updateSpeed(); 
+
+ 
+
+    // Avant/arrière : stick gauche Y (ly) 
+
+    int leftStickY = Ps3.data.analog.stick.ly; 
+
+ 
+
+    // Tournant gauche/droite : stick droit X (rx) 
+
+    int rightStickX = Ps3.data.analog.stick.rx; 
+
+ 
+
+    // Calcul de la vitesse 
+
+    int leftMotorSpeed = map(leftStickY, -128, 127, speedMultiplier, -speedMultiplier); 
+
+    int rightMotorSpeed = map(leftStickY, -128, 127, speedMultiplier, -speedMultiplier); 
+
+ 
+
+    // Tourner avec vitesse maximale 
+
+    leftMotorSpeed += map(rightStickX, -128, 127, -speedMultiplier, speedMultiplier); 
+
+    rightMotorSpeed -= map(rightStickX, -128, 127, -speedMultiplier, speedMultiplier); 
+
+ 
+
+    moveRobot(leftMotorSpeed, rightMotorSpeed); 
+
+ 
+
+    if (Ps3.data.button.circle) { 
+
+      Serial.println("⛔ Arrêt d'urgence !"); 
+
+      moveRobot(0, 0); 
+
+    } 
+
+  } 
+
+} 
+
+ 
+
+ 
